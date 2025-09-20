@@ -20,7 +20,7 @@ export const getCredentials = async (): Promise<Credential[]> => {
   return credentials
 }
 
-const saveCredentials = async (credentials: Credential[]): Promise<void> => {
+export const saveCredentials = async (credentials: Credential[]): Promise<void> => {
   await chrome.storage.local.set({ credentials })
 }
 

@@ -14,3 +14,5 @@ A simple browser extension to automate the Wi-Fi authentication process.
     -   Enable **Developer mode** using the toggle in the top-right corner.
     -   Click the **"Load unpacked"** button.
     -   Select the `build/chrome-mv3-production` folder from the project directory.
+
+<img width="359" height="582" alt="image" src="https://github.com/user-attachments/assets/4b3b0415-e603-4973-a936-947c0c7e4c65" />
