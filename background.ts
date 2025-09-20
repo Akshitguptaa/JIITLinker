@@ -12,7 +12,7 @@ async function login(username, password) {
     mode: "191",
     username: username,
     password: password,
-    a: Date.now().toString(),
+    a: Date.now().toString()
   })
 
   try {
@@ -20,7 +20,7 @@ async function login(username, password) {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: payload,
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(5000)
     })
 
     if (!response.ok) return { success: false }
@@ -30,11 +30,13 @@ async function login(username, password) {
     const xmlDoc = parser.parseFromString(xmlText, "application/xml")
     const message = xmlDoc.querySelector("message")?.textContent || ""
 
-    const isLoggedIn =
+    if (
       message.includes("You are signed in as") ||
       message.includes("You have successfully logged in")
-
-    return { success: isLoggedIn }
+    ) {
+      return { success: true }
+    }
+    return { success: false }
   } catch (error) {
     console.error("Login request failed:", error)
     return { success: false }
@@ -53,7 +55,7 @@ async function logout() {
   const payload = new URLSearchParams({
     mode: "193",
     username: username,
-    a: Date.now().toString(),
+    a: Date.now().toString()
   })
 
   try {
@@ -61,7 +63,7 @@ async function logout() {
       method: "POST",
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
       body: payload,
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(5000)
     })
     return { success: true }
   } catch (error) {
@@ -75,7 +77,7 @@ async function measureSpeed() {
     const startTime = performance.now()
     await fetch(SPEED_TEST_URL, {
       signal: AbortSignal.timeout(30000),
-      cache: "no-store",
+      cache: "no-store"
     }).then((res) => res.blob())
     const endTime = performance.now()
 
@@ -109,14 +111,14 @@ async function stopService(statusMessage) {
   await updateStatus(statusMessage, false)
 }
 
-async function attemptLoginCycle() {
-  const { isRunning: isServiceActive } = await getExtensionState()
-  if (!isServiceActive) return
+async function runLoginCycle() {
+  const { isRunning: wasRunning } = await getExtensionState()
+  if (!wasRunning) return
 
   const isConnected = await fetch(PING_URL, {
     method: "GET",
     mode: "no-cors",
-    signal: AbortSignal.timeout(3000),
+    signal: AbortSignal.timeout(3000)
   })
     .then(() => true)
     .catch(() => false)
@@ -136,7 +138,10 @@ async function attemptLoginCycle() {
   }
 
   let { currentCredentialIndex } = await getExtensionState()
-  currentCredentialIndex = currentCredentialIndex === -1 ? 0 : currentCredentialIndex
+  currentCredentialIndex =
+    currentCredentialIndex === -1 ? 0 : currentCredentialIndex
+
+  let hasConnectedSuccessfully = false
 
   for (let i = 0; i < credentials.length; i++) {
     const state = await getExtensionState()
@@ -147,7 +152,7 @@ async function attemptLoginCycle() {
 
     await updateStatus(
       `Testing: ${testIndex + 1}/${credentials.length} (${credential.username})`,
-      true,
+      true
     )
 
     const result = await login(credential.username, credential.password)
@@ -155,22 +160,28 @@ async function attemptLoginCycle() {
     if (result.success) {
       await updateStatus(
         `Connected with ID ${testIndex + 1} (${credential.username})`,
-        true,
+        true
       )
       await setExtensionState({ currentCredentialIndex: testIndex })
-      return
+      hasConnectedSuccessfully = true
+      break
     }
   }
 
-  await updateStatus(`All ${credentials.length} IDs failed. Retrying...`, true)
-  await setExtensionState({ currentCredentialIndex: 0 })
+  if (!hasConnectedSuccessfully) {
+    await updateStatus(
+      `All ${credentials.length} IDs failed. Retrying...`,
+      true
+    )
+    await setExtensionState({ currentCredentialIndex: 0 })
+  }
 }
 
 chrome.runtime.onMessage.addListener(async (message) => {
   if (message.action === "start") {
     await setExtensionState({ isRunning: true, currentCredentialIndex: 0 })
     await updateStatus("Service starting...", true)
-    attemptLoginCycle()
+    runLoginCycle()
     chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 })
   } else if (message.action === "stop") {
     await stopService("Service stopped by user.")
@@ -179,23 +190,21 @@ chrome.runtime.onMessage.addListener(async (message) => {
     await stopService("Disconnected by user.")
   } else if (message.action === "checkSpeed") {
     const speed = await measureSpeed()
-    chrome.runtime
-      .sendMessage({ type: "SPEED_UPDATE", speed })
-      .catch(() => {})
+    chrome.runtime.sendMessage({ type: "SPEED_UPDATE", speed }).catch(() => {})
   }
   return true
 })
 
 chrome.alarms.onAlarm.addListener(async (alarm) => {
   if (alarm.name === ALARM_NAME) {
-    attemptLoginCycle()
+    runLoginCycle()
   }
 })
 
 chrome.runtime.onStartup.addListener(async () => {
   const { isRunning } = await getExtensionState()
   if (isRunning) {
-    attemptLoginCycle()
+    runLoginCycle()
     chrome.alarms.create(ALARM_NAME, { periodInMinutes: 1 })
   }
 })
