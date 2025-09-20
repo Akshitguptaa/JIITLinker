@@ -4,7 +4,7 @@ A simple browser extension to automate the Wi-Fi authentication process.
 
 ### Installation & Local Setup
 
-1.  **Downnlaod the Extension:**
+1.  **Download the Extension:**
     - Go to the [**Releases**](https://github.com/Akshitguptaa/JIITLinker/releases) page of this repository.
     - Under the latest release, download the `.zip` file.
     - Unzip the downloaded file.    
